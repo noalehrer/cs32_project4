@@ -31,5 +31,7 @@ int main() {
         };
         assert((v[0] == expected[0]  &&  v[1] == expected[1])  ||
                (v[0] == expected[1]  &&  v[1] == expected[0]) );
+    
+    cerr<<"Passed all tests"<<endl;
     return 0;
 }

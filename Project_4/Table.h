@@ -36,7 +36,7 @@ class Table
     
     //this is where we store the actual record strings
     //let's make it 997 buckets
-    vector<list<string>> table;
+    vector<list<vector<string>>> table;
     
     int customerHash(string customer) const;
 };

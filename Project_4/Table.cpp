@@ -116,7 +116,14 @@ bool Table::insert(const std::string& recordString){
     }
     
     //we want to insert into table based on the value of the keycolumn of the string
-    table[customerHash(key_value)].push_back(recordString);
+    vector<string> record_string_vector;
+    
+    s = "";
+    parser = recordString;
+    while(parser.getNextField(s)==true){
+        record_string_vector.push_back(s);
+    }
+    table[customerHash(key_value)].push_back(record_string_vector);
     
     //maybe instead of inserting the whole record string i could have list store a vector to represent the items in the record string...
     return true;
@@ -126,19 +133,13 @@ void Table::find(std::string key, std::vector<std::vector<std::string>>& records
     records.clear();
     int index = customerHash(key);
     //go to bucket at index, iterate thru list
-    for(list<string>::const_iterator it = table[index].cbegin(); it!=table[index].cend(); it++){
+    for(list<vector<string>>::const_iterator it = table[index].cbegin(); it!=table[index].cend(); it++){
         //if value in keyfield is equal to the key string
-        string key_field_value = "";
-        StringParser record_string = StringParser(*it);
-        for(int i = 0; i<key_field_index+1; i++){
-            record_string.getNextField(key_field_value);
-        }
+        string key_field_value = (*it)[key_field_index];
         if(key_field_value==key){
-            record_string = StringParser(*it); //need to reset record string because we have been modifying it in the for loop
             vector<string> vector_record_string;
-            string s = "";
-            while(record_string.getNextField(s)==true){
-                vector_record_string.push_back(s);
+            for(vector<string>::const_iterator i = (*it).begin(); i!=(*it).end(); i++){
+                vector_record_string.push_back(*i);
             }
             records.push_back(vector_record_string);
             //now vector_record_string contains each field in the record string
