@@ -147,13 +147,233 @@ void Table::find(std::string key, std::vector<std::vector<std::string>>& records
     }
 }
 
+bool Table::isValidQuery(string column_name, string comparison_operator, string comparison_value, int &column_index) const{
+    bool valid_column_name = false;
+    for(int i = 0; i<m_columnsVector.size(); i++){
+        if(m_columnsVector[i]==column_name){
+            valid_column_name = true;
+            column_index = i;
+        }
+    }
+    //column not found
+    if(valid_column_name==false){
+        return false;
+    }
+    //comparison value valid
+    return true;
+}
+
+void Table::searchTable(int column_name_index, string comparison_operator, string comparison_value, std::vector<std::vector<std::string>>& records)const{
+    //we already know that the comparison operator is valid
+    //Note: do not pass invalid comparison operator to this function
+    
+    //record being passed should already be clear, this is just to confirm
+    records.clear();
+    
+    switch(comparison_operator[0]){
+        case '<':
+            //less than or equal
+            if(comparison_operator.size()==2){
+                //this probs can be optimized later... considering that hash table is organized by key field
+                //iterate through the whole hash table
+                for(int i = 0; i<table.size(); i++){
+                    //look at each item in each list in each bucket
+                    for(list<vector<string>>::const_iterator it = table[i].cbegin(); it!=table[i].cend(); it++){
+                        //if comparison is true
+                        if((*it)[column_name_index]<=comparison_value){
+                            //push back the whole vector into records
+                            records.push_back(*it);
+                        }
+                    }
+                    
+                }
+            }
+            //less than
+            else{
+                for(int i = 0; i<table.size(); i++){
+                    for(list<vector<string>>::const_iterator it = table[i].cbegin(); it!=table[i].cend(); it++){
+                        if((*it)[column_name_index]<comparison_value){
+                            records.push_back(*it);
+                        }
+                    }
+                }
+            }
+            break;
+        case '>':
+            //greater than or equal
+            if(comparison_operator.size()==2){
+                for(int i = 0; i<table.size(); i++){
+                    for(list<vector<string>>::const_iterator it = table[i].cbegin(); it!=table[i].cend(); it++){
+                        if((*it)[column_name_index]>=comparison_value){
+                            records.push_back(*it);
+                        }
+                    }
+                }
+            }
+            //greater than
+            else{
+                for(int i = 0; i<table.size(); i++){
+                    for(list<vector<string>>::const_iterator it = table[i].cbegin(); it!=table[i].cend(); it++){
+                        if((*it)[column_name_index]>comparison_value){
+                            records.push_back(*it);
+                        }
+                    }
+                }
+            }
+            break;
+        //equal to
+        case '=':
+            for(int i = 0; i<table.size(); i++){
+                for(list<vector<string>>::const_iterator it = table[i].cbegin(); it!=table[i].cend(); it++){
+                    if((*it)[column_name_index]==comparison_value){
+                        records.push_back(*it);
+                    }
+                }
+            }
+            break;
+        //not equal to
+        case '!':
+            for(int i = 0; i<table.size(); i++){
+                for(list<vector<string>>::const_iterator it = table[i].cbegin(); it!=table[i].cend(); it++){
+                    if((*it)[column_name_index]!=comparison_value){
+                        records.push_back(*it);
+                    }
+                }
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+
 int Table::select(std::string query, std::vector<std::vector<std::string>>& records) const{
-    //can we assume valid queries?
     StringParser query_parser = StringParser(query);
     string column_name, comparison_operator, comparison_value;
     query_parser.getNextField(column_name);
     query_parser.getNextField(comparison_operator);
     query_parser.getNextField(comparison_value);
+    
+    int column_index = -1;
+    
+    records.clear();
+    //invalid query
+    
+    if(isValidQuery(column_name, comparison_operator, comparison_value, column_index)==false){
+        return -1;
+    }
+
+    //else valid query
+    switch(char ch = comparison_operator[0]){
+        case 'l':
+        case 'L':
+            if(comparison_operator.size()==2){
+                //less than
+                if(comparison_operator[1]=='T'||comparison_operator[1]=='t'){
+                    searchTable(column_index,"<", comparison_value, records);
+                    break;
+                }
+                //less than or equal to
+                else if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
+                    searchTable(column_index,"<=", comparison_value, records);
+                    break;
+                }
+                else{
+                    return -1;
+                }
+            }
+            else{
+                return -1;
+            }
+        case '<':
+            //less than or equal
+            if(comparison_operator.size()==2 && comparison_operator[1]=='='){
+                searchTable(column_index,"<=", comparison_value, records);
+                break;
+            }
+            //less than
+            else if(comparison_operator.size()==1){
+                searchTable(column_index,"<", comparison_value, records);
+                break;
+            }
+            else{
+                return -1;
+            }
+        case 'g':
+        case 'G':
+            if(comparison_operator.size()==2){
+                //greater than
+                if(comparison_operator[1]=='T'||comparison_operator[1]=='t'){
+                    searchTable(column_index,">", comparison_value, records);
+                    break;
+                }
+                //greater than or equal to
+                else if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
+                    searchTable(column_index,">=", comparison_value, records);
+                    break;
+                }
+                else{
+                    return -1;
+                }
+            }
+            else{
+                return -1;
+            }
+        case '>':
+            //greater than or equal
+            if(comparison_operator.size()==2 && comparison_operator[1]=='='){
+                searchTable(column_index,">=", comparison_value, records);
+                break;
+            }
+            //greater than
+            else if(comparison_operator.size()==1){
+                searchTable(column_index,">", comparison_value, records);
+                break;
+            }
+            else{
+                return -1;
+            }
+        case 'n':
+        case 'N':
+            if(comparison_operator.size()==2){
+                //not equal to
+                if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
+                    searchTable(column_index,"!=", comparison_value, records);
+                    break;
+                }
+                else{
+                    return -1;
+                }
+            }
+            else{
+                return -1;
+            }
+        case '!':
+            if(comparison_operator.size()==2){
+                //not equal to
+                if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
+                    searchTable(column_index,"!=", comparison_value, records);
+                    break;
+                }
+                else{
+                    return -1;
+                }
+            }
+            else{
+                return -1;
+            }
+        case '=':
+            //equal to
+            if((comparison_operator.size()==2 && comparison_operator[1]!='=')||comparison_operator.size()==1){
+                searchTable(column_index,"==", comparison_value, records);
+                break;
+            }
+            else{
+                return -1;
+            }
+        default:
+            return -1;
+    }
 
     return 0;
 }

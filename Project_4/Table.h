@@ -8,6 +8,7 @@
 #ifndef Table_hpp
 #define Table_hpp
 
+#include <iostream>
 #include <string>
 #include <vector>
 #include <list>
@@ -39,6 +40,10 @@ class Table
     vector<list<vector<string>>> table;
     
     int customerHash(string customer) const;
+    
+    bool isValidQuery(string column_name, string comparison_operator, string comparison_value, int &column_index) const;
+    
+    void searchTable(int column_name_index, string comparison_operator, string comparison_value, std::vector<std::vector<std::string>>& records)const;
 };
 
 class StringParser
