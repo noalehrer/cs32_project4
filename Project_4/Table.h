@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <list>
+#include <cstdlib>
 using namespace std;
 
 class Table
@@ -43,28 +44,8 @@ class Table
     
     bool isValidQuery(string column_name, string comparison_operator, string comparison_value, int &column_index) const;
     
-    void searchTable(int column_name_index, string comparison_operator, string comparison_value, std::vector<std::vector<std::string>>& records)const;
+    void searchTableString(int column_name_index, string comparison_operator, string comparison_value, std::vector<std::vector<std::string>>& records)const;
+    void searchTableNumber(int column_name_index, string comparison_operator, int numerical_comparison_value, std::vector<std::vector<std::string>>& records, int &improper_record_count)const;
+    bool stringToDouble(string s, double &d) const;
 };
-
-class StringParser
-{
-  public:
-    StringParser(std::string text = "")
-    {
-        setString(text);
-    }
-
-    void setString(std::string text)
-    {
-        m_text = text;
-        m_start = 0;
-    }
-
-    bool getNextField(std::string& field);
-
-  private:
-    std::string m_text;
-    size_t m_start;
-};
-
 #endif /* Table_hpp */

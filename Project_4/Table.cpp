@@ -7,6 +7,28 @@
 
 #include "Table.h"
 
+class StringParser
+{
+  public:
+    StringParser(std::string text = "")
+    {
+        setString(text);
+    }
+
+    void setString(std::string text)
+    {
+        m_text = text;
+        m_start = 0;
+    }
+
+    bool getNextField(std::string& field);
+
+  private:
+    std::string m_text;
+    size_t m_start;
+};
+
+
 Table::Table(std::string keyColumn, const std::vector<std::string>& columns){
     //whatever the first parameter is, that should be the key and the value is the record string
     table.resize(997); //big, prime number
@@ -18,7 +40,6 @@ Table::Table(std::string keyColumn, const std::vector<std::string>& columns){
             key_field_index = i;
         }
     }
-
 }
 
 Table::~Table(){
@@ -56,7 +77,7 @@ bool Table::good() const{
     return true;
 }
 
-
+//I CAN USE THE BUILT IN HASH FUNCTION BY INCLUDING FUNCTIONAL...
 int Table::customerHash(string customer) const{
     unsigned int hashValue = 2166136261U;
     for(int i = 0; i<customer.size(); i++){
@@ -163,7 +184,113 @@ bool Table::isValidQuery(string column_name, string comparison_operator, string 
     return true;
 }
 
-void Table::searchTable(int column_name_index, string comparison_operator, string comparison_value, std::vector<std::vector<std::string>>& records)const{
+void Table::searchTableNumber(int column_name_index, string comparison_operator, int numerical_comparison_value, std::vector<std::vector<std::string>>& records, int &improper_record_count)const{
+    records.clear();
+    switch(comparison_operator[0]){
+        case '<':
+            //less than or equal
+            if(comparison_operator.size()==2){
+                //this probs can be optimized later... considering that hash table is organized by key field
+                //iterate through the whole hash table
+                for(int i = 0; i<table.size(); i++){
+                    //look at each item in each list in each bucket
+                    for(list<vector<string>>::const_iterator it = table[i].cbegin(); it!=table[i].cend(); it++){
+                        //if comparison is true
+                        double d;
+                        if(stringToDouble((*it)[column_name_index], d) && d<=numerical_comparison_value){
+                            //push back the whole vector into records
+                            records.push_back(*it);
+                        }
+                        else if(stringToDouble((*it)[column_name_index], d)==false){
+                            improper_record_count+=1;
+                        }
+                    }
+                }
+            }
+            //less than
+            else{
+                for(int i = 0; i<table.size(); i++){
+                    for(list<vector<string>>::const_iterator it = table[i].cbegin(); it!=table[i].cend(); it++){
+                        double d;
+                        if(stringToDouble((*it)[column_name_index], d) && d<numerical_comparison_value){
+                            //push back the whole vector into records
+                            records.push_back(*it);
+                        }
+                        else if(stringToDouble((*it)[column_name_index], d)==false){
+                            improper_record_count+=1;
+                        }
+                    }
+                }
+            }
+            break;
+        case '>':
+            //greater than or equal
+            if(comparison_operator.size()==2){
+                for(int i = 0; i<table.size(); i++){
+                    for(list<vector<string>>::const_iterator it = table[i].cbegin(); it!=table[i].cend(); it++){
+                        double d;
+                        if(stringToDouble((*it)[column_name_index], d) && d>=numerical_comparison_value){
+                            //push back the whole vector into records
+                            records.push_back(*it);
+                        }
+                        else if(stringToDouble((*it)[column_name_index], d)==false){
+                            improper_record_count+=1;
+                        }
+                    }
+                }
+            }
+            //greater than
+            else{
+                for(int i = 0; i<table.size(); i++){
+                    for(list<vector<string>>::const_iterator it = table[i].cbegin(); it!=table[i].cend(); it++){
+                        double d;
+                        if(stringToDouble((*it)[column_name_index], d) && d>numerical_comparison_value){
+                            //push back the whole vector into records
+                            records.push_back(*it);
+                        }
+                        else if(stringToDouble((*it)[column_name_index], d)==false){
+                            improper_record_count+=1;
+                        }
+                    }
+                }
+            }
+            break;
+        //equal to
+        case '=':
+            for(int i = 0; i<table.size(); i++){
+                for(list<vector<string>>::const_iterator it = table[i].cbegin(); it!=table[i].cend(); it++){
+                    double d;
+                    if(stringToDouble((*it)[column_name_index], d) && d==numerical_comparison_value){
+                        //push back the whole vector into records
+                        records.push_back(*it);
+                    }
+                    else if(stringToDouble((*it)[column_name_index], d)==false){
+                        improper_record_count+=1;
+                    }
+                }
+            }
+            break;
+        //not equal to
+        case '!':
+            for(int i = 0; i<table.size(); i++){
+                for(list<vector<string>>::const_iterator it = table[i].cbegin(); it!=table[i].cend(); it++){
+                    double d;
+                    if(stringToDouble((*it)[column_name_index], d) && d==numerical_comparison_value){
+                        //push back the whole vector into records
+                        records.push_back(*it);
+                    }
+                    else if(stringToDouble((*it)[column_name_index], d)==false){
+                        improper_record_count+=1;
+                    }
+                }
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+void Table::searchTableString(int column_name_index, string comparison_operator, string comparison_value, std::vector<std::vector<std::string>>& records)const{
     //we already know that the comparison operator is valid
     //Note: do not pass invalid comparison operator to this function
     
@@ -253,8 +380,17 @@ int Table::select(std::string query, std::vector<std::vector<std::string>>& reco
     query_parser.getNextField(column_name);
     query_parser.getNextField(comparison_operator);
     query_parser.getNextField(comparison_value);
+    //too many arguments in the query, if i do the bonus, i'll have to change this
+    string s;
+    if(query_parser.getNextField(s)==true){
+        return -1;
+    }
     
     int column_index = -1;
+    
+    int improper_record_count = 0;
+    
+    double numerical_comparison_value = -1;
     
     records.clear();
     //invalid query
@@ -265,36 +401,26 @@ int Table::select(std::string query, std::vector<std::vector<std::string>>& reco
 
     //else valid query
     switch(char ch = comparison_operator[0]){
+        //numerical comparisons
         case 'l':
         case 'L':
             if(comparison_operator.size()==2){
+                if(stringToDouble(comparison_value, numerical_comparison_value)==false){
+                    return -1;
+                }
                 //less than
                 if(comparison_operator[1]=='T'||comparison_operator[1]=='t'){
-                    searchTable(column_index,"<", comparison_value, records);
+                    searchTableNumber(column_index,"<", numerical_comparison_value, records, improper_record_count);
                     break;
                 }
                 //less than or equal to
                 else if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
-                    searchTable(column_index,"<=", comparison_value, records);
+                    searchTableNumber(column_index,"<=", numerical_comparison_value, records,improper_record_count);
                     break;
                 }
                 else{
                     return -1;
                 }
-            }
-            else{
-                return -1;
-            }
-        case '<':
-            //less than or equal
-            if(comparison_operator.size()==2 && comparison_operator[1]=='='){
-                searchTable(column_index,"<=", comparison_value, records);
-                break;
-            }
-            //less than
-            else if(comparison_operator.size()==1){
-                searchTable(column_index,"<", comparison_value, records);
-                break;
             }
             else{
                 return -1;
@@ -302,19 +428,74 @@ int Table::select(std::string query, std::vector<std::vector<std::string>>& reco
         case 'g':
         case 'G':
             if(comparison_operator.size()==2){
+                if(stringToDouble(comparison_value, numerical_comparison_value)==false){
+                    return -1;
+                }
                 //greater than
                 if(comparison_operator[1]=='T'||comparison_operator[1]=='t'){
-                    searchTable(column_index,">", comparison_value, records);
+                    searchTableNumber(column_index,">", numerical_comparison_value, records,improper_record_count);
                     break;
                 }
                 //greater than or equal to
                 else if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
-                    searchTable(column_index,">=", comparison_value, records);
+                    searchTableNumber(column_index,">=", numerical_comparison_value, records,improper_record_count);
                     break;
                 }
                 else{
                     return -1;
                 }
+            }
+            else{
+                return -1;
+            }
+        //not equal to
+        case 'n':
+        case 'N':
+            if(comparison_operator.size()==2){
+                if(stringToDouble(comparison_value, numerical_comparison_value)==false){
+                    return -1;
+                }
+                if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
+                    searchTableNumber(column_index,"!=", numerical_comparison_value, records,improper_record_count);
+                    break;
+                }
+                else{
+                    return -1;
+                }
+            }
+            else{
+                return -1;
+            }
+        //equal to
+        case 'e':
+        case 'E':
+            if(comparison_operator.size()==2){
+                if(stringToDouble(comparison_value, numerical_comparison_value)==false){
+                    return -1;
+                }
+                if(comparison_operator[1]=='Q'||comparison_operator[1]=='q'){
+                    searchTableNumber(column_index,"==", numerical_comparison_value, records,improper_record_count);
+                    break;
+                }
+                else{
+                    return -1;
+                }
+            }
+            else{
+                return -1;
+            }
+            
+        //string comparisons
+        case '<':
+            //less than or equal
+            if(comparison_operator.size()==2 && comparison_operator[1]=='='){
+                searchTableString(column_index,"<=", comparison_value, records);
+                break;
+            }
+            //less than
+            else if(comparison_operator.size()==1){
+                searchTableString(column_index,"<", comparison_value, records);
+                break;
             }
             else{
                 return -1;
@@ -322,28 +503,13 @@ int Table::select(std::string query, std::vector<std::vector<std::string>>& reco
         case '>':
             //greater than or equal
             if(comparison_operator.size()==2 && comparison_operator[1]=='='){
-                searchTable(column_index,">=", comparison_value, records);
+                searchTableString(column_index,">=", comparison_value, records);
                 break;
             }
             //greater than
             else if(comparison_operator.size()==1){
-                searchTable(column_index,">", comparison_value, records);
+                searchTableString(column_index,">", comparison_value, records);
                 break;
-            }
-            else{
-                return -1;
-            }
-        case 'n':
-        case 'N':
-            if(comparison_operator.size()==2){
-                //not equal to
-                if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
-                    searchTable(column_index,"!=", comparison_value, records);
-                    break;
-                }
-                else{
-                    return -1;
-                }
             }
             else{
                 return -1;
@@ -351,8 +517,8 @@ int Table::select(std::string query, std::vector<std::vector<std::string>>& reco
         case '!':
             if(comparison_operator.size()==2){
                 //not equal to
-                if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
-                    searchTable(column_index,"!=", comparison_value, records);
+                if(comparison_operator[1]=='='){
+                    searchTableString(column_index,"!=", comparison_value, records);
                     break;
                 }
                 else{
@@ -364,8 +530,8 @@ int Table::select(std::string query, std::vector<std::vector<std::string>>& reco
             }
         case '=':
             //equal to
-            if((comparison_operator.size()==2 && comparison_operator[1]!='=')||comparison_operator.size()==1){
-                searchTable(column_index,"==", comparison_value, records);
+            if((comparison_operator.size()==2 && comparison_operator[1]=='=')||comparison_operator.size()==1){
+                searchTableString(column_index,"==", comparison_value, records);
                 break;
             }
             else{
@@ -375,6 +541,11 @@ int Table::select(std::string query, std::vector<std::vector<std::string>>& reco
             return -1;
     }
 
-    return 0;
+    return improper_record_count;
 }
 
+bool Table::stringToDouble(string s, double& d) const{
+    char* end;
+    d = std::strtof(s.c_str(), &end);
+    return end == s.c_str() + s.size()  &&  !s.empty();
+}
