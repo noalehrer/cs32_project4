@@ -18,34 +18,30 @@ using namespace std;
 class Table
 {
   public:
-    Table(std::string keyColumn, const std::vector<std::string>& columns); //construct an empty table with vector items as column names
+    Table(std::string keyColumn, const std::vector<std::string>& columns);
     ~Table();
-    bool good() const; //return true if table was successfully constructed
+    bool good() const;
     bool insert(const std::string& recordString);
     void find(std::string key, std::vector<std::vector<std::string>>& records) const;
     int select(std::string query, std::vector<std::vector<std::string>>& records) const;
-
-      // We prevent a Table object from being copied or assigned by
-      // making the copy constructor and assignment operator unavailable.
     Table(const Table&) = delete;
     Table& operator=(const Table&) = delete;
+    
   private:
-    //these are so we can assess the validity of the table structure, we don't keep the records in here tho
+    //MARK: - database table
     string m_keyColumn; //this is just so we know the key column name, this isn't an actual record string
-    vector<string> m_columnsVector; //this is just so we know all the column names, thi doesn't contain actual record strings
+    vector<string> m_columnsVector; //this is just so we know all the column names, this doesn't contain actual record strings
+    int key_field_index = -1; //this tells us the index of the key field item in m_columnsVector
+    vector<list<vector<string>>> table; //hash table, each item has a linked list, each item in the linked list contains a vector of strings which was created from the record string
     
-    int key_field_index; //this tells us the index of the item in the vector that is the key field
-    
-    //this is where we store the actual record strings
-    //let's make it 997 buckets
-    vector<list<vector<string>>> table;
-    
-    int customerHash(string customer) const;
+    //MARK: - helper functions
+    int hashFunction(string key) const;
     
     bool isValidQuery(string column_name, string comparison_operator, string comparison_value, int &column_index) const;
     
     void searchTableString(int column_name_index, string comparison_operator, string comparison_value, std::vector<std::vector<std::string>>& records)const;
     void searchTableNumber(int column_name_index, string comparison_operator, int numerical_comparison_value, std::vector<std::vector<std::string>>& records, int &improper_record_count)const;
     bool stringToDouble(string s, double &d) const;
+    bool inValidColumnName(string column_name)const;
 };
 #endif /* Table_hpp */

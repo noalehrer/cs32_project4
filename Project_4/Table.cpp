@@ -6,7 +6,7 @@
 //
 
 #include "Table.h"
-
+//MARK: - StringParser
 class StringParser
 {
   public:
@@ -27,65 +27,6 @@ class StringParser
     std::string m_text;
     size_t m_start;
 };
-
-
-Table::Table(std::string keyColumn, const std::vector<std::string>& columns){
-    //whatever the first parameter is, that should be the key and the value is the record string
-    table.resize(997); //big, prime number
-    m_keyColumn = keyColumn;
-    m_columnsVector.resize(columns.size());
-    for(int i = 0; i<m_columnsVector.size(); i++){
-        m_columnsVector[i] = columns[i];
-        if(m_columnsVector[i]==m_keyColumn){
-            key_field_index = i;
-        }
-    }
-}
-
-Table::~Table(){
-    
-}
-
-bool Table::good() const{
-    //ways constructing a table could go wrong
-    //columns vector empty
-    if(m_columnsVector.empty()){
-        return false;
-    }
-    //columns vector has duplicate strings
-    for(int j = 0; j<m_columnsVector.size(); j++){
-        for(int k = 0; k<m_columnsVector.size(); k++){
-            if(j!=k){
-                if(m_columnsVector[j]==m_columnsVector[k]){
-                    return false;
-                }
-            }
-        }
-    }
-    
-    //key column not included of list of column names
-    int i = 0;
-    for(; i<m_columnsVector.size(); i++){
-        if(m_columnsVector[i]==m_keyColumn){
-            //key column is included in columns vector
-            break;
-        }
-    }
-    if(i==m_columnsVector.size()){
-        return false;
-    }
-    return true;
-}
-
-//I CAN USE THE BUILT IN HASH FUNCTION BY INCLUDING FUNCTIONAL...
-int Table::customerHash(string customer) const{
-    unsigned int hashValue = 2166136261U;
-    for(int i = 0; i<customer.size(); i++){
-        hashValue+=customer[i];
-        hashValue*=16777619;
-    }
-    return hashValue%997;
-}
 
 bool StringParser::getNextField(std::string& fieldText)
 {
@@ -117,9 +58,90 @@ bool StringParser::getNextField(std::string& fieldText)
     return true;
 }
 
+bool Table::stringToDouble(string s, double& d) const{
+    char* end;
+    d = std::strtof(s.c_str(), &end);
+    return end == s.c_str() + s.size()  &&  !s.empty();
+}
+
+bool Table::inValidColumnName(string column_name) const{
+    if(column_name == "&" ||column_name == "|" ||column_name == "(" ||column_name == ")"){
+        return true;
+    }
+    return false;
+}
+
+//MARK: - Table
+Table::Table(std::string keyColumn, const std::vector<std::string>& columns){
+    //does not check if parameters are valid for construction
+    table.resize(997);
+    m_keyColumn = keyColumn;
+    m_columnsVector.resize(columns.size());
+    for(int i = 0; i<m_columnsVector.size(); i++){
+        m_columnsVector[i] = columns[i];
+        if(m_columnsVector[i]==m_keyColumn){
+            key_field_index = i;
+        }
+    }
+}
+
+Table::~Table(){
+    
+}
+
+//MARK: - good
+bool Table::good() const{
+    //ways constructing a table could go wrong
+    
+    //columns vector empty
+    if(m_columnsVector.empty()){
+        return false;
+    }
+    
+    //key column not in list
+    //if key_field_index is still -1, then the key column is not included of list of column names
+    if(key_field_index==-1){
+        return false;
+    }
+    
+    //columns vector has duplicate strings
+    for(int j = 0; j<m_columnsVector.size(); j++){
+        for(int k = 0; k<m_columnsVector.size(); k++){
+            if(j!=k){
+                if(m_columnsVector[j]==m_columnsVector[k]){
+                    return false;
+                }
+            }
+        }
+    }
+    
+    //TODO: - find out if a column can be named ""
+    
+    //column name can't be &,|,(, or )
+    for(int i = 0; i<m_columnsVector.size(); i++){
+        if(inValidColumnName(m_columnsVector[i])){
+            return false;
+        }
+    }
+    return true;
+}
+
+int Table::hashFunction(string key) const{
+    unsigned int hashValue = 2166136261U;
+    for(int i = 0; i<key.size(); i++){
+        hashValue+=key[i];
+        hashValue*=16777619;
+    }
+    return hashValue%997;
+}
+
+//MARK: - insert
 bool Table::insert(const std::string& recordString){
+    //if table constructed was invalid, return false because we aren't going to insert anything into an invalid table
+    if(good()==false){
+        return false;
+    }
     //if the string is valid (correct number of fields)
-    //do i also need to check if the fields are the right data type?
     int field_count = 0;
     StringParser parser(recordString);
     string s;
@@ -144,15 +166,19 @@ bool Table::insert(const std::string& recordString){
     while(parser.getNextField(s)==true){
         record_string_vector.push_back(s);
     }
-    table[customerHash(key_value)].push_back(record_string_vector);
-    
-    //maybe instead of inserting the whole record string i could have list store a vector to represent the items in the record string...
+    table[hashFunction(key_value)].push_back(record_string_vector);
+
     return true;
 }
 
+//MARK: - find
 void Table::find(std::string key, std::vector<std::vector<std::string>>& records) const{
+    //TODO: - is this the behavior we would want from find if the table is invalid...
+    if(good()==false){
+        return;
+    }
     records.clear();
-    int index = customerHash(key);
+    int index = hashFunction(key);
     //go to bucket at index, iterate thru list
     for(list<vector<string>>::const_iterator it = table[index].cbegin(); it!=table[index].cend(); it++){
         //if value in keyfield is equal to the key string
@@ -168,6 +194,7 @@ void Table::find(std::string key, std::vector<std::vector<std::string>>& records
     }
 }
 
+//MARK: - isValidQuery
 bool Table::isValidQuery(string column_name, string comparison_operator, string comparison_value, int &column_index) const{
     bool valid_column_name = false;
     for(int i = 0; i<m_columnsVector.size(); i++){
@@ -180,10 +207,186 @@ bool Table::isValidQuery(string column_name, string comparison_operator, string 
     if(valid_column_name==false){
         return false;
     }
-    //comparison value valid
+    //comparison value valid??
     return true;
 }
 
+//MARK: - select
+int Table::select(std::string query, std::vector<std::vector<std::string>>& records) const{
+    //TODO: - is this the behavior we would want from select if table was invalid
+    if(good()==false){
+        return -1;
+    }
+    StringParser query_parser = StringParser(query);
+    string column_name, comparison_operator, comparison_value;
+    query_parser.getNextField(column_name);
+    query_parser.getNextField(comparison_operator);
+    query_parser.getNextField(comparison_value);
+    //too many arguments in the query, if i do the bonus, i'll have to change this
+    string s;
+    
+    //if there is another field, and the field isn't a & or |
+    if(query_parser.getNextField(s)==true && !(s=="&" || s=="|")){
+        return -1;
+    }
+    
+    int column_index = -1; //this will be updated by call to isValidQuery
+    int improper_record_count = 0; //this will be updated by numerical search function
+    double numerical_comparison_value = -1; //
+    
+    records.clear();
+    //invalid query
+    if(isValidQuery(column_name, comparison_operator, comparison_value, column_index)==false){
+        return -1;
+    }
+
+    //else valid query
+    switch(comparison_operator[0]){
+        //MARK: - numerical comparisons
+        case 'l':
+        case 'L':
+            if(comparison_operator.size()==2){
+                if(stringToDouble(comparison_value, numerical_comparison_value)==false){
+                    return -1;
+                }
+                //less than
+                if(comparison_operator[1]=='T'||comparison_operator[1]=='t'){
+                    searchTableNumber(column_index,"<", numerical_comparison_value, records, improper_record_count);
+                    break;
+                }
+                //less than or equal to
+                else if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
+                    searchTableNumber(column_index,"<=", numerical_comparison_value, records,improper_record_count);
+                    break;
+                }
+                else{
+                    return -1;
+                }
+            }
+            else{
+                return -1;
+            }
+        case 'g':
+        case 'G':
+            if(comparison_operator.size()==2){
+                if(stringToDouble(comparison_value, numerical_comparison_value)==false){
+                    return -1;
+                }
+                //greater than
+                if(comparison_operator[1]=='T'||comparison_operator[1]=='t'){
+                    searchTableNumber(column_index,">", numerical_comparison_value, records,improper_record_count);
+                    break;
+                }
+                //greater than or equal to
+                else if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
+                    searchTableNumber(column_index,">=", numerical_comparison_value, records,improper_record_count);
+                    break;
+                }
+                else{
+                    return -1;
+                }
+            }
+            else{
+                return -1;
+            }
+        //not equal to
+        case 'n':
+        case 'N':
+            if(comparison_operator.size()==2){
+                if(stringToDouble(comparison_value, numerical_comparison_value)==false){
+                    return -1;
+                }
+                if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
+                    searchTableNumber(column_index,"!=", numerical_comparison_value, records,improper_record_count);
+                    break;
+                }
+                else{
+                    return -1;
+                }
+            }
+            else{
+                return -1;
+            }
+        //equal to
+        case 'e':
+        case 'E':
+            if(comparison_operator.size()==2){
+                if(stringToDouble(comparison_value, numerical_comparison_value)==false){
+                    return -1;
+                }
+                if(comparison_operator[1]=='Q'||comparison_operator[1]=='q'){
+                    searchTableNumber(column_index,"==", numerical_comparison_value, records,improper_record_count);
+                    break;
+                }
+                else{
+                    return -1;
+                }
+            }
+            else{
+                return -1;
+            }
+            
+        //MARK: - string comparisons
+        case '<':
+            //less than or equal
+            if(comparison_operator.size()==2 && comparison_operator[1]=='='){
+                searchTableString(column_index,"<=", comparison_value, records);
+                break;
+            }
+            //less than
+            else if(comparison_operator.size()==1){
+                searchTableString(column_index,"<", comparison_value, records);
+                break;
+            }
+            else{
+                return -1;
+            }
+        case '>':
+            //greater than or equal
+            if(comparison_operator.size()==2 && comparison_operator[1]=='='){
+                searchTableString(column_index,">=", comparison_value, records);
+                break;
+            }
+            //greater than
+            else if(comparison_operator.size()==1){
+                searchTableString(column_index,">", comparison_value, records);
+                break;
+            }
+            else{
+                return -1;
+            }
+        case '!':
+            if(comparison_operator.size()==2){
+                //not equal to
+                if(comparison_operator[1]=='='){
+                    searchTableString(column_index,"!=", comparison_value, records);
+                    break;
+                }
+                else{
+                    return -1;
+                }
+            }
+            else{
+                return -1;
+            }
+        case '=':
+            //equal to
+            if((comparison_operator.size()==2 && comparison_operator[1]=='=')||comparison_operator.size()==1){
+                searchTableString(column_index,"==", comparison_value, records);
+                break;
+            }
+            else{
+                return -1;
+            }
+        default:
+            return -1;
+    }
+
+    return improper_record_count;
+}
+
+
+//MARK: - numerical search
 void Table::searchTableNumber(int column_name_index, string comparison_operator, int numerical_comparison_value, std::vector<std::vector<std::string>>& records, int &improper_record_count)const{
     records.clear();
     switch(comparison_operator[0]){
@@ -290,6 +493,7 @@ void Table::searchTableNumber(int column_name_index, string comparison_operator,
     }
 }
 
+//MARK: - string search
 void Table::searchTableString(int column_name_index, string comparison_operator, string comparison_value, std::vector<std::vector<std::string>>& records)const{
     //we already know that the comparison operator is valid
     //Note: do not pass invalid comparison operator to this function
@@ -371,181 +575,4 @@ void Table::searchTableString(int column_name_index, string comparison_operator,
         default:
             break;
     }
-}
-
-
-int Table::select(std::string query, std::vector<std::vector<std::string>>& records) const{
-    StringParser query_parser = StringParser(query);
-    string column_name, comparison_operator, comparison_value;
-    query_parser.getNextField(column_name);
-    query_parser.getNextField(comparison_operator);
-    query_parser.getNextField(comparison_value);
-    //too many arguments in the query, if i do the bonus, i'll have to change this
-    string s;
-    if(query_parser.getNextField(s)==true){
-        return -1;
-    }
-    
-    int column_index = -1;
-    
-    int improper_record_count = 0;
-    
-    double numerical_comparison_value = -1;
-    
-    records.clear();
-    //invalid query
-    
-    if(isValidQuery(column_name, comparison_operator, comparison_value, column_index)==false){
-        return -1;
-    }
-
-    //else valid query
-    switch(char ch = comparison_operator[0]){
-        //numerical comparisons
-        case 'l':
-        case 'L':
-            if(comparison_operator.size()==2){
-                if(stringToDouble(comparison_value, numerical_comparison_value)==false){
-                    return -1;
-                }
-                //less than
-                if(comparison_operator[1]=='T'||comparison_operator[1]=='t'){
-                    searchTableNumber(column_index,"<", numerical_comparison_value, records, improper_record_count);
-                    break;
-                }
-                //less than or equal to
-                else if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
-                    searchTableNumber(column_index,"<=", numerical_comparison_value, records,improper_record_count);
-                    break;
-                }
-                else{
-                    return -1;
-                }
-            }
-            else{
-                return -1;
-            }
-        case 'g':
-        case 'G':
-            if(comparison_operator.size()==2){
-                if(stringToDouble(comparison_value, numerical_comparison_value)==false){
-                    return -1;
-                }
-                //greater than
-                if(comparison_operator[1]=='T'||comparison_operator[1]=='t'){
-                    searchTableNumber(column_index,">", numerical_comparison_value, records,improper_record_count);
-                    break;
-                }
-                //greater than or equal to
-                else if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
-                    searchTableNumber(column_index,">=", numerical_comparison_value, records,improper_record_count);
-                    break;
-                }
-                else{
-                    return -1;
-                }
-            }
-            else{
-                return -1;
-            }
-        //not equal to
-        case 'n':
-        case 'N':
-            if(comparison_operator.size()==2){
-                if(stringToDouble(comparison_value, numerical_comparison_value)==false){
-                    return -1;
-                }
-                if(comparison_operator[1]=='E'||comparison_operator[1]=='e'){
-                    searchTableNumber(column_index,"!=", numerical_comparison_value, records,improper_record_count);
-                    break;
-                }
-                else{
-                    return -1;
-                }
-            }
-            else{
-                return -1;
-            }
-        //equal to
-        case 'e':
-        case 'E':
-            if(comparison_operator.size()==2){
-                if(stringToDouble(comparison_value, numerical_comparison_value)==false){
-                    return -1;
-                }
-                if(comparison_operator[1]=='Q'||comparison_operator[1]=='q'){
-                    searchTableNumber(column_index,"==", numerical_comparison_value, records,improper_record_count);
-                    break;
-                }
-                else{
-                    return -1;
-                }
-            }
-            else{
-                return -1;
-            }
-            
-        //string comparisons
-        case '<':
-            //less than or equal
-            if(comparison_operator.size()==2 && comparison_operator[1]=='='){
-                searchTableString(column_index,"<=", comparison_value, records);
-                break;
-            }
-            //less than
-            else if(comparison_operator.size()==1){
-                searchTableString(column_index,"<", comparison_value, records);
-                break;
-            }
-            else{
-                return -1;
-            }
-        case '>':
-            //greater than or equal
-            if(comparison_operator.size()==2 && comparison_operator[1]=='='){
-                searchTableString(column_index,">=", comparison_value, records);
-                break;
-            }
-            //greater than
-            else if(comparison_operator.size()==1){
-                searchTableString(column_index,">", comparison_value, records);
-                break;
-            }
-            else{
-                return -1;
-            }
-        case '!':
-            if(comparison_operator.size()==2){
-                //not equal to
-                if(comparison_operator[1]=='='){
-                    searchTableString(column_index,"!=", comparison_value, records);
-                    break;
-                }
-                else{
-                    return -1;
-                }
-            }
-            else{
-                return -1;
-            }
-        case '=':
-            //equal to
-            if((comparison_operator.size()==2 && comparison_operator[1]=='=')||comparison_operator.size()==1){
-                searchTableString(column_index,"==", comparison_value, records);
-                break;
-            }
-            else{
-                return -1;
-            }
-        default:
-            return -1;
-    }
-
-    return improper_record_count;
-}
-
-bool Table::stringToDouble(string s, double& d) const{
-    char* end;
-    d = std::strtof(s.c_str(), &end);
-    return end == s.c_str() + s.size()  &&  !s.empty();
 }

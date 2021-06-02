@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include "Table.h"
+#include <cassert>
 
 using namespace std;
 
