@@ -106,6 +106,10 @@ bool Table::good() const{
     
     //columns vector has duplicate strings
     for(int j = 0; j<m_columnsVector.size(); j++){
+        //column needs to have a valid name
+        if(m_columnsVector[j]==""){
+            return false;
+        }
         for(int k = 0; k<m_columnsVector.size(); k++){
             if(j!=k){
                 if(m_columnsVector[j]==m_columnsVector[k]){
@@ -114,9 +118,7 @@ bool Table::good() const{
             }
         }
     }
-    
-    //TODO: - find out if a column can be named ""
-    
+        
     //column name can't be &,|,(, or )
     for(int i = 0; i<m_columnsVector.size(); i++){
         if(inValidColumnName(m_columnsVector[i])){
@@ -173,11 +175,10 @@ bool Table::insert(const std::string& recordString){
 
 //MARK: - find
 void Table::find(std::string key, std::vector<std::vector<std::string>>& records) const{
-    //TODO: - is this the behavior we would want from find if the table is invalid...
+    records.clear();
     if(good()==false){
         return;
     }
-    records.clear();
     int index = hashFunction(key);
     //go to bucket at index, iterate thru list
     for(list<vector<string>>::const_iterator it = table[index].cbegin(); it!=table[index].cend(); it++){
@@ -213,7 +214,6 @@ bool Table::isValidQuery(string column_name, string comparison_operator, string 
 
 //MARK: - select
 int Table::select(std::string query, std::vector<std::vector<std::string>>& records) const{
-    //TODO: - is this the behavior we would want from select if table was invalid
     if(good()==false){
         return -1;
     }

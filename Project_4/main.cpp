@@ -48,13 +48,19 @@ int testtwo() {
         "customer", "product", "price", "location"
     };
     Table t("customer", cols);
+    Table r("invalid", cols);
+    Table s("", cols);
+    assert(!r.good());
+    assert(!s.good());
     assert(t.good());
     assert(t.insert("Patel 12345 42.54 Westwood"));
     assert(t.insert("O'Reilly 34567     4.99 Westwood   "));
     assert(t.insert("   Hoang  12345 30.46 'Santa Monica' "));
     assert(t.insert("Patel\t67890\t142.75  \t \t\t  \tHollywood"));
     assert( ! t.insert("Figueroa 54321 59.95"));
+    assert( ! t.insert("Figueroa 54321 59.95 xyz pqr"));
 
+    
     vector<vector<string>> v1;
         t.find("Patel", v1);
         assert(v1.size() == 2);
