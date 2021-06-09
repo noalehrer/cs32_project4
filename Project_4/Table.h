@@ -47,6 +47,6 @@ class Table
     bool stringToDouble(string s, double &d) const;
     bool inValidColumnName(string column_name)const;
     bool isValidQuery(std::string query,std::vector<std::vector<std::string>> &records, int &improper_record_count) const;
-
+    void unite(std::vector<std::vector<std::string>> records_q1,std::vector<std::vector<std::string>> records_q2,std::vector<std::vector<std::string>>& records, int improper_record_count_q1, int improper_record_count_q2, int& improper_record_count)const;
 };
 #endif /* Table_hpp */

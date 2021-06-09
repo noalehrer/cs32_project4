@@ -414,6 +414,7 @@ void Table::searchTableNumber(int column_name_index, string comparison_operator,
                             records.push_back(*it);
                         }
                         else if(stringToDouble((*it)[column_name_index], d)==false){
+                            //MARK: - incrementing improper record count
                             improper_record_count+=1;
                         }
                     }
@@ -428,6 +429,7 @@ void Table::searchTableNumber(int column_name_index, string comparison_operator,
                             //push back the whole vector into records
                             records.push_back(*it);
                         }
+                        //MARK: - improper record count
                         else if(stringToDouble((*it)[column_name_index], d)==false){
                             improper_record_count+=1;
                         }
@@ -445,6 +447,7 @@ void Table::searchTableNumber(int column_name_index, string comparison_operator,
                             //push back the whole vector into records
                             records.push_back(*it);
                         }
+                        //MARK: - improper record count increment
                         else if(stringToDouble((*it)[column_name_index], d)==false){
                             improper_record_count+=1;
                         }
@@ -491,6 +494,7 @@ void Table::searchTableNumber(int column_name_index, string comparison_operator,
                         //push back the whole vector into records
                         records.push_back(*it);
                     }
+                    //MARK: incrementing improper record count
                     else if(stringToDouble((*it)[column_name_index], d)==false){
                         improper_record_count+=1;
                     }
@@ -653,6 +657,9 @@ bool Table::isValidQuery(std::string query, std::vector<std::vector<std::string>
     
     //evaluate postfix
     //if there is only one query
+    if(postfix_query_vector.size()<3){
+        return false;
+    }
     if(postfix_query_vector.size()==3){
         int sub_select_result = sub_select(records, improper_record_count, postfix_query_vector[0], postfix_query_vector[1], postfix_query_vector[2]);
         if(sub_select_result==-1){
@@ -662,11 +669,26 @@ bool Table::isValidQuery(std::string query, std::vector<std::vector<std::string>
             return true;
         }
     }
-    stack<string> postfix_stack;
+    stack<vector<string>> postfix_stack;
 //    vector<vector<string>> temp_record;
-    vector<string> sub_query;
     for(int i = 0; i<postfix_query_vector.size(); i++){
-        //query 1
+        if(postfix_query_vector[i]=="|"){
+            
+        }
+        else if(postfix_query_vector[i]=="&"){
+            
+        }
+        else{
+            //query 1
+            vector<string> sub_query;
+            sub_query.push_back(postfix_query_vector[i]);
+            sub_query.push_back(postfix_query_vector[i+1]);
+            sub_query.push_back(postfix_query_vector[i+2]);
+            i+=3;
+        }
+        
+        
+        
         int sub_select_result_q1 = sub_select(records, improper_record_count, postfix_query_vector[i], postfix_query_vector[i+1], postfix_query_vector[i+2]);
         if(sub_select_result_q1==-1){
             return false;
@@ -685,14 +707,18 @@ bool Table::isValidQuery(std::string query, std::vector<std::vector<std::string>
         }
         
         if(isOperator(postfix_query_vector[i])){
-
+            
             //if its or, just separately add both to temp_re
         }
         else{
-            postfix_stack.push(postfix_query_vector[i]);
         }
         
     }
     
     return true;
+}
+
+void Table::unite(std::vector<std::vector<std::string>> records_q1,std::vector<std::vector<std::string>> records_q2,std::vector<std::vector<std::string>>& records, int improper_record_count_q1, int improper_record_count_q2, int& improper_record_count)const{
+
+    
 }
