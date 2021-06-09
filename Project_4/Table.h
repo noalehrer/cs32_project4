@@ -13,6 +13,7 @@
 #include <vector>
 #include <list>
 #include <cstdlib>
+#include <stack>
 using namespace std;
 
 class Table
@@ -33,15 +34,19 @@ class Table
     vector<string> m_columnsVector; //this is just so we know all the column names, this doesn't contain actual record strings
     int key_field_index = -1; //this tells us the index of the key field item in m_columnsVector
     vector<list<vector<string>>> table; //hash table, each item has a linked list, each item in the linked list contains a vector of strings which was created from the record string
+    int sub_select(std::vector<std::vector<std::string>>& records, int& improper_record_count, string column_name, string comparison_operator, string comparison_value) const;
+
     
     //MARK: - helper functions
     int hashFunction(string key) const;
     
-    bool isValidQuery(string column_name, string comparison_operator, string comparison_value, int &column_index) const;
+    bool isValidSubQuery(string column_name, string comparison_operator, string comparison_value, int &column_index) const;
     
     void searchTableString(int column_name_index, string comparison_operator, string comparison_value, std::vector<std::vector<std::string>>& records)const;
     void searchTableNumber(int column_name_index, string comparison_operator, int numerical_comparison_value, std::vector<std::vector<std::string>>& records, int &improper_record_count)const;
     bool stringToDouble(string s, double &d) const;
     bool inValidColumnName(string column_name)const;
+    bool isValidQuery(std::string query,std::vector<std::vector<std::string>> &records, int &improper_record_count) const;
+
 };
 #endif /* Table_hpp */

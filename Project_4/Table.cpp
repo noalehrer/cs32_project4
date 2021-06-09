@@ -195,8 +195,8 @@ void Table::find(std::string key, std::vector<std::vector<std::string>>& records
     }
 }
 
-//MARK: - isValidQuery
-bool Table::isValidQuery(string column_name, string comparison_operator, string comparison_value, int &column_index) const{
+//MARK: - isValidSubQuery
+bool Table::isValidSubQuery(string column_name, string comparison_operator, string comparison_value, int &column_index) const{
     bool valid_column_name = false;
     for(int i = 0; i<m_columnsVector.size(); i++){
         if(m_columnsVector[i]==column_name){
@@ -217,26 +217,35 @@ int Table::select(std::string query, std::vector<std::vector<std::string>>& reco
     if(good()==false){
         return -1;
     }
-    StringParser query_parser = StringParser(query);
-    string column_name, comparison_operator, comparison_value;
-    query_parser.getNextField(column_name);
-    query_parser.getNextField(comparison_operator);
-    query_parser.getNextField(comparison_value);
-    //too many arguments in the query, if i do the bonus, i'll have to change this
-    string s;
-    
-    //if there is another field, and the field isn't a & or |
-    if(query_parser.getNextField(s)==true && !(s=="&" || s=="|")){
+    int improper_record_count;
+    if(isValidQuery(query, records, improper_record_count)==false){
+        records.clear();
         return -1;
     }
+    return improper_record_count;
+}
+//MARK: - subselect
+int Table::sub_select(std::vector<std::vector<std::string>>& records, int &improper_record_count, string column_name, string comparison_operator, string comparison_value) const{
+//    StringParser query_parser = StringParser(query);
+//    string column_name, comparison_operator, comparison_value;
+//    query_parser.getNextField(column_name);
+//    query_parser.getNextField(comparison_operator);
+//    query_parser.getNextField(comparison_value);
+//    //too many arguments in the query, if i do the bonus, i'll have to change this
+//    string s;
+//
+//    //if there is another field, and the field isn't a & or |
+//    if(query_parser.getNextField(s)==true && !(s=="&" || s=="|")){
+//        return -1;
+//    }
     
     int column_index = -1; //this will be updated by call to isValidQuery
-    int improper_record_count = 0; //this will be updated by numerical search function
+    improper_record_count = 0; //this will be updated by numerical search function
     double numerical_comparison_value = -1; //
     
     records.clear();
     //invalid query
-    if(isValidQuery(column_name, comparison_operator, comparison_value, column_index)==false){
+    if(isValidSubQuery(column_name, comparison_operator, comparison_value, column_index)==false){
         return -1;
     }
 
@@ -575,4 +584,115 @@ void Table::searchTableString(int column_name_index, string comparison_operator,
         default:
             break;
     }
+}
+
+//MARK: - precedence
+inline
+int precedence(char ch)
+  //  Precondition:  ch is in "|&("
+{
+    static string ops = "|&(";
+    static int prec[4] = { 1, 2, 0 };
+    size_t pos = ops.find(ch);
+    assert(pos != string::npos);  // must be found!
+    return prec[pos];
+}
+
+bool isOperator(string s){
+    return s=="|" || s=="&" || s=="(" || s==")";
+}
+
+bool Table::isValidQuery(std::string query, std::vector<std::vector<std::string>>& records, int& improper_record_count)const{
+    StringParser query_parser = StringParser(query);
+    string s;
+    stack<char> operator_stack;
+    vector<string> postfix_query_vector;
+    
+    //infix to postfix
+    while(query_parser.getNextField(s)==true){
+        //if it is an operator
+        if(isOperator(s)){
+            switch(s[0]){
+                case '(':
+                    operator_stack.push(s[0]);
+                    break;
+                case ')':
+                    //pop stack until matching '('
+                    while(!operator_stack.empty() && operator_stack.top()!='('){
+                        operator_stack.pop();
+                    }
+                    if(operator_stack.empty()){
+                        return false;
+                    }
+                    //remove final '('
+                    operator_stack.pop();
+                    break;
+                case '&':
+                case '|':
+                    while(!operator_stack.empty() && precedence(s[0]<=precedence(operator_stack.top()))){
+                        postfix_query_vector.push_back(s);
+                        operator_stack.pop();
+                    }
+                    operator_stack.push(s[0]);
+                    break;
+                default:
+                    return false;
+            }
+        }
+        //if it is an operand aka subpart of a query
+        else{
+            postfix_query_vector.push_back(s);
+        }
+    }
+    while(!operator_stack.empty()){
+        //convert from char to string
+        string x(1, operator_stack.top());
+        postfix_query_vector.push_back(x);
+        operator_stack.pop();
+    }
+    
+    //evaluate postfix
+    //if there is only one query
+    if(postfix_query_vector.size()==3){
+        int sub_select_result = sub_select(records, improper_record_count, postfix_query_vector[0], postfix_query_vector[1], postfix_query_vector[2]);
+        if(sub_select_result==-1){
+            return false;
+        }
+        else{
+            return true;
+        }
+    }
+    stack<string> postfix_stack;
+//    vector<vector<string>> temp_record;
+    vector<string> sub_query;
+    for(int i = 0; i<postfix_query_vector.size(); i++){
+        //query 1
+        int sub_select_result_q1 = sub_select(records, improper_record_count, postfix_query_vector[i], postfix_query_vector[i+1], postfix_query_vector[i+2]);
+        if(sub_select_result_q1==-1){
+            return false;
+        }
+        i +=3;
+        //query 2
+        const int i_before_q2 = i;
+        int sub_select_result_q2 = sub_select(records, improper_record_count, postfix_query_vector[i], postfix_query_vector[i+1], postfix_query_vector[i+2]);
+        if(sub_select_result_q2==-1){
+            return false;
+        }
+        i +=3;
+        
+        if(postfix_query_vector[i]=="|"){
+            
+        }
+        
+        if(isOperator(postfix_query_vector[i])){
+
+            //if its or, just separately add both to temp_re
+        }
+        else{
+            postfix_stack.push(postfix_query_vector[i]);
+        }
+        
+    }
+    
+    return true;
 }
